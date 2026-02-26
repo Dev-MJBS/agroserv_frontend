@@ -13,8 +13,12 @@ const firebaseConfig = {
 // Initialize Firebase only if config is valid and not placeholders
 const isConfigValid = 
   firebaseConfig.apiKey && 
-  firebaseConfig.apiKey.length > 20 && // Real API keys are typically ~39 chars
+  firebaseConfig.apiKey.length > 20 &&
   !firebaseConfig.apiKey.includes("your_api_key");
+
+if (typeof window !== "undefined" && !isConfigValid) {
+  console.warn("Firebase config is missing or invalid. Check your .env.local file and RESTART your 'npm run dev' process.");
+}
 
 const app = getApps().length === 0 && isConfigValid
   ? initializeApp(firebaseConfig) 
