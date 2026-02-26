@@ -10,8 +10,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
+// Initialize Firebase only if config is valid
+const app = getApps().length === 0 && firebaseConfig.apiKey 
+  ? initializeApp(firebaseConfig) 
+  : getApps().at(0);
+
+const auth = app ? getAuth(app) : null;
 
 export { auth };

@@ -19,10 +19,13 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      if (!auth) {
+        throw new Error('Firebase não foi inicializado corretamente. Verifique as chaves no environment.');
+      }
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError('E-mail ou senha inválidos. Tente novamente.');
+      setError(err.message || 'E-mail ou senha inválidos. Tente novamente.');
       console.error(err);
     } finally {
       setLoading(false);

@@ -14,6 +14,11 @@ export default function ProtectedLayout({
   const router = useRouter();
 
   useEffect(() => {
+    if (!auth) {
+      console.warn("Firebase Auth not initialized. Please check your environment variables.");
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push('/login');
@@ -24,6 +29,15 @@ export default function ProtectedLayout({
 
     return () => unsubscribe();
   }, [router]);
+
+  // Se o Firebase não estiver configurado, apenas exibe a mensagem (pode ocorrer durante build se chaves faltarem)
+  if (!auth) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-red-50 text-red-700">
+        Configuração do Firebase ausente no ambiente.
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -63,7 +77,7 @@ export default function ProtectedLayout({
         </nav>
         <div className="p-4 border-t border-slate-800">
             <button 
-                onClick={() => auth.signOut()}
+                onClick={() => auth?.signOut()}
                 className="w-full text-left py-2 px-4 rounded hover:bg-red-600 transition-colors text-red-400 hover:text-white"
             >
                 Sair
