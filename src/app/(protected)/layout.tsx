@@ -67,7 +67,7 @@ export default function ProtectedLayout({
       {/* Sidebar Simples */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col">
         <div className="p-6 text-2xl font-bold border-b border-slate-800">
-          Agroserv Admin
+          Grupo AGROSERV
         </div>
         <nav className="flex-1 mt-6 px-4 space-y-2">
             <a href="/dashboard" className="block py-2 px-4 rounded hover:bg-slate-800 transition-colors">Dashboard</a>

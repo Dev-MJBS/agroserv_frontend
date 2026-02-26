@@ -5,7 +5,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-br from-green-50 to-green-100">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm flex flex-col space-y-8">
         <h1 className="text-6xl font-black text-green-800 text-center uppercase tracking-tighter">
-          RH Agroserv
+          Grupo AGROSERV
         </h1>
         <p className="text-xl text-green-700 text-center font-sans max-w-2xl px-4">
           O sistema completo para gestão de Recursos Humanos, Financeiro e Logística da sua empresa agropecuária.
