@@ -43,15 +43,20 @@ export default function ComparacaoLogisticaPage() {
     setError(null);
 
     const formData = new FormData();
-    formData.append('file', fileBase);
+    // ESSENCIAL: O nome 'arquivo' deve bater com o parâmetro UploadFile na rota FastAPI
+    formData.append('arquivo', fileBase);
 
     try {
       const response = await fetch(`${apiUrl}/logistica/analisar-colunas`, {
         method: 'POST',
         body: formData,
+        // REGRA DE OURO: NÃO DEFINA "Content-Type" manualmente. O browser cuidará do 'boundary'.
       });
 
-      if (!response.ok) throw new Error('Falha ao analisar o documento. Verifique se o formato é suportado.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Erro no servidor: ${JSON.stringify(errorData) || response.statusText}`);
+      }
 
       const data = await response.json();
       // Assumindo que a API devolve { colunas: ['col1', 'col2'] } ou um array direto
@@ -90,18 +95,23 @@ export default function ComparacaoLogisticaPage() {
     setError(null);
 
     const formData = new FormData();
-    formData.append('file_base', fileBase);
-    formData.append('file_comparacao', fileCompare);
-    // Adiciona as colunas selecionadas (o backend FastAPI geralmente aceita múltiplos valores para a mesma key como List)
+    // ESSENCIAL: Nomes devem bater com o esperado pelo backend
+    formData.append('arquivo_base', fileBase);
+    formData.append('arquivo_comparacao', fileCompare);
+    // Adiciona as colunas selecionadas
     selectedColumns.forEach(col => formData.append('colunas', col));
 
     try {
       const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
         method: 'POST',
         body: formData,
+        // O fetch cuidará do Content-Type e boundary automaticamente
       });
 
-      if (!response.ok) throw new Error('Erro ao comparar os documentos. Verifique a integridade dos ficheiros.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`Erro na comparação: ${JSON.stringify(errorData) || response.statusText}`);
+      }
 
       const data: ComparisonResults = await response.json();
       setResults(data);
