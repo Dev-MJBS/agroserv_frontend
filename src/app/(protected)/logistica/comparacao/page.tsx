@@ -15,6 +15,7 @@ interface ComparisonResults {
 interface ColumnMapping {
   col1: string;
   col2: string;
+  prompt?: string;
 }
 
 const COLORS = ['#22c55e', '#ef4444', '#f97316', '#64748b']; // Verde, Vermelho, Laranja, Cinza
@@ -149,7 +150,13 @@ export default function ComparacaoLogisticaPage() {
     // NOMES EXATOS QUE O BACKEND ESPERA (arquivo_1, arquivo_2, mapeamento)
     formData.append('arquivo_1', fileBase);
     formData.append('arquivo_2', fileCompare);
-    formData.append('mapeamento', JSON.stringify(mappings));
+    // Garante que todos os mapeamentos têm o campo prompt
+    const mappingData = mappings.map(m => ({
+      col1: m.col1,
+      col2: m.col2,
+      prompt: m.prompt || ""
+    }));
+    formData.append('mapeamento', JSON.stringify(mappingData));
 
     try {
       const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
@@ -312,6 +319,35 @@ export default function ComparacaoLogisticaPage() {
     setComparisonId(null);
   };
 
+  // Estados de UI
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCol, setModalCol] = useState<string | null>(null);
+  const [modalPrompt, setModalPrompt] = useState<string>("");
+
+  // Abrir modal para instruções específicas da coluna
+  const openPromptModal = (col1: string) => {
+    const mapping = mappings.find(m => m.col1 === col1);
+    setModalCol(col1);
+    setModalPrompt(mapping?.prompt || "");
+    setModalOpen(true);
+  };
+
+  const closePromptModal = () => {
+    setModalOpen(false);
+    setModalCol(null);
+    setModalPrompt("");
+  };
+
+  const savePromptModal = () => {
+    if (!modalCol) return;
+    setMappings(prev => {
+      return prev.map(m =>
+        m.col1 === modalCol ? { ...m, prompt: modalPrompt } : m
+      );
+    });
+    closePromptModal();
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
@@ -420,31 +456,37 @@ export default function ComparacaoLogisticaPage() {
             <p className="text-sm text-gray-500">Relacione as colunas da Base com as colunas da Comparação.</p>
             
             <div className="max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              {colsFile1.map((col1) => (
-                <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
-                  <div className="text-md font-extrabold text-green-900 truncate uppercase tracking-wider">{col1}</div>
-                  <div className="flex items-center gap-2">
-                    <select 
-                      className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
-                      onChange={(e) => updateMapping(col1, e.target.value)}
-                      value={mappings.find(m => m.col1 === col1)?.col2 || ""}
-                    >
-                      <option value="">Não mapear</option>
-                      {colsFile2.map(col2 => (
-                        <option key={col2} value={col2}>{col2}</option>
-                      ))}
-                    </select>
-                    <button
-                      className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 focus:ring-2 focus:ring-green-600"
-                      onClick={() => openPromptModal(col1)}
-                    >
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
+              {colsFile1.map((col1) => {
+                const mapping = mappings.find(m => m.col1 === col1);
+                const hasPrompt = !!mapping?.prompt && mapping.prompt.trim() !== "";
+                return (
+                  <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
+                    <div className="text-md font-extrabold text-green-900 truncate uppercase tracking-wider">{col1}</div>
+                    <div className="flex items-center gap-2">
+                      <select 
+                        className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                        onChange={(e) => updateMapping(col1, e.target.value)}
+                        value={mapping?.col2 || ""}
+                      >
+                        <option value="">Não mapear</option>
+                        {colsFile2.map(col2 => (
+                          <option key={col2} value={col2}>{col2}</option>
+                        ))}
+                      </select>
+                      <button
+                        className={`p-2 rounded-full border-2 ${hasPrompt ? 'bg-yellow-100 border-yellow-400 shadow-yellow-200 shadow-md animate-pulse' : 'bg-gray-200 border-gray-300'} hover:bg-gray-300 focus:ring-2 focus:ring-green-600`}
+                        onClick={() => openPromptModal(col1)}
+                        type="button"
+                        title={hasPrompt ? 'Esta coluna possui uma instrução especial' : 'Adicionar instrução especial'}
+                      >
+                        <svg className={`w-5 h-5 ${hasPrompt ? 'text-yellow-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex gap-4 pt-4 border-t border-gray-100">
@@ -463,6 +505,23 @@ export default function ComparacaoLogisticaPage() {
         {/* PASSO 4: Resultados */}
         {step === 4 && results && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+            {/* Card de Resumo Inteligente IA */}
+            {results.analise_ia && (
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-400 rounded-xl p-6 shadow-md mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-7 h-7 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-yellow-900 font-bold text-lg mb-2">Resumo Inteligente</h3>
+                    <div className="prose prose-sm max-w-none text-yellow-800" style={{whiteSpace: 'pre-wrap'}}>{results.analise_ia}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="text-left">
                 <h2 className="text-2xl font-bold text-gray-800">Resultados da Comparação</h2>
@@ -620,6 +679,25 @@ export default function ComparacaoLogisticaPage() {
         )}
 
       </div>
+
+      {/* Modal para Instrução Especial de Coluna */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-2 text-gray-900">Instrução Especial para esta Coluna</h3>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg p-3 text-gray-800 min-h-[80px] mb-4"
+              placeholder="Ex: Multiplique por 60, ignore espaços extras, etc."
+              value={modalPrompt}
+              onChange={e => setModalPrompt(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={closePromptModal} className="px-4 py-2 rounded bg-gray-100 text-gray-700 font-medium hover:bg-gray-200">Cancelar</button>
+              <button onClick={savePromptModal} className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
