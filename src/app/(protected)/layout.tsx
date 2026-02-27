@@ -74,6 +74,7 @@ export default function ProtectedLayout({
             <a href="/financeiro" className="block py-2 px-4 rounded hover:bg-slate-800 transition-colors">Financeiro</a>
             <a href="/rh" className="block py-2 px-4 rounded hover:bg-slate-800 transition-colors">RH</a>
             <a href="/logistica" className="block py-2 px-4 rounded hover:bg-slate-800 transition-colors">Logística</a>
+            <a href="/logistica/comparacao" className="block py-2 px-4 rounded hover:bg-slate-800 transition-colors text-sm text-gray-400 ml-4 border-l border-slate-700">↳ Comparação</a>
         </nav>
         <div className="p-4 border-t border-slate-800">
             <button 
