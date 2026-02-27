@@ -16,6 +16,13 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// --- Utility ---
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // --- Types ---
 interface ColumnMapping {
@@ -36,7 +43,7 @@ const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#64748b'];
 
 // --- Helper Components ---
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>
+  <div className={cn("bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden", className)}>
     {children}
   </div>
 );
@@ -45,9 +52,9 @@ const Button = ({
   children, 
   loading = false, 
   variant = 'primary', 
+  className,
   ...props 
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) => {
-  const baseStyles = "px-4 py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm";
   const variants = {
     primary: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
     secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
@@ -56,7 +63,15 @@ const Button = ({
   };
 
   return (
-    <button className={`${baseStyles} ${variants[variant]}`} disabled={loading} {...props}>
+    <button 
+      className={cn(
+        "px-4 py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm",
+        variants[variant],
+        className
+      )} 
+      disabled={loading || props.disabled} 
+      {...props}
+    >
       {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : children}
     </button>
   );
@@ -64,7 +79,7 @@ const Button = ({
 
 export default function LogisticaInteligentePage() {
   // --- States ---
-  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Upload, 2: Mapping, 3: Results
+  const [step, setStep] = useState<1 | 2 | 3>(1); 
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [cols1, setCols1] = useState<string[]>([]);
@@ -170,7 +185,7 @@ export default function LogisticaInteligentePage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 p-4 md:p-8">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -205,14 +220,20 @@ export default function LogisticaInteligentePage() {
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documento Base (Arquivo 1)</label>
               <div 
                 onClick={() => fileInputRef1.current?.click()}
-                className={`group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer ${file1 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'}`}
+                className={cn(
+                  "group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer h-64",
+                  file1 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'
+                )}
               >
                 <input type="file" ref={fileInputRef1} className="hidden" onChange={(e) => setFile1(e.target.files?.[0] || null)} />
-                <div className={`p-4 rounded-full mb-4 transition-transform group-hover:scale-110 ${file1 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                <div className={cn(
+                  "p-4 rounded-full mb-4 transition-transform group-hover:scale-110",
+                  file1 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'
+                )}>
                   {file1 ? <CheckCircle2 className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
                 </div>
-                <h3 className="font-bold text-slate-900">{file1 ? file1.name : "Selecionar Documento Principal"}</h3>
-                <p className="text-xs text-slate-500 mt-1">Excel, CSV ou Planilha do Sistema</p>
+                <h3 className="font-bold text-slate-900 text-center">{file1 ? file1.name : "Selecionar Documento Principal"}</h3>
+                <p className="text-xs text-slate-500 mt-1 uppercase tracking-tighter">Excel, CSV ou Planilha do Sistema</p>
               </div>
             </div>
 
@@ -220,20 +241,32 @@ export default function LogisticaInteligentePage() {
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documento Auditoria (Arquivo 2)</label>
               <div 
                 onClick={() => fileInputRef2.current?.click()}
-                className={`group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer ${file2 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'}`}
+                className={cn(
+                  "group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer h-64",
+                  file2 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'
+                )}
               >
                 <input type="file" ref={fileInputRef2} className="hidden" onChange={(e) => setFile2(e.target.files?.[0] || null)} />
-                <div className={`p-4 rounded-full mb-4 transition-transform group-hover:scale-110 ${file2 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                <div className={cn(
+                  "p-4 rounded-full mb-4 transition-transform group-hover:scale-110",
+                  file2 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'
+                )}>
                   {file2 ? <CheckCircle2 className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
                 </div>
-                <h3 className="font-bold text-slate-900">{file2 ? file2.name : "Selecionar Documento Comparação"}</h3>
-                <p className="text-xs text-slate-500 mt-1">Canhotos, XMLs ou Logística Terceira</p>
+                <h3 className="font-bold text-slate-900 text-center">{file2 ? file2.name : "Selecionar Documento Comparação"}</h3>
+                <p className="text-xs text-slate-500 mt-1 uppercase tracking-tighter">Canhotos, XMLs ou Logística Terceira</p>
               </div>
             </div>
 
-            <div className="md:col-span-2 pt-4">
-              <Button onClick={handleUploadAndAnalyze} loading={loading} className="w-full h-14 text-lg">
-                Começar Mapeamento Inteligente <ArrowRight className="w-5 h-5" />
+            <div className="md:col-span-2 pt-6">
+              <Button 
+                onClick={handleUploadAndAnalyze} 
+                loading={loading} 
+                className="w-full h-16 text-xl shadow-lg border-2 border-emerald-700"
+                disabled={!file1 || !file2}
+              >
+                {!file1 || !file2 ? "Aguardando arquivos..." : "Prosseguir para Mapeamento"} 
+                <ArrowRight className="ml-2 w-6 h-6" />
               </Button>
             </div>
           </motion.div>
@@ -248,7 +281,7 @@ export default function LogisticaInteligentePage() {
                   <p className="text-sm text-slate-500">Defina quais colunas devem ser comparadas e adicione regras da IA.</p>
                 </div>
                 <Button variant="secondary" onClick={addMappingRow} className="!py-2">
-                  <PlusCircle className="w-4 h-4" /> Adicionar Relação
+                  <PlusCircle className="w-4 h-4" /> Adicionar Par
                 </Button>
               </div>
 
@@ -262,7 +295,7 @@ export default function LogisticaInteligentePage() {
                       animate={{ opacity: 1, y: 0 }}
                     >
                       <div className="flex-1 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Coluna no Arquivo Base</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Documento Base</label>
                         <select 
                           className="w-full h-11 px-4 rounded-xl border-slate-200 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 transition-all bg-white shadow-xs appearance-none"
                           value={map.col1}
@@ -278,7 +311,7 @@ export default function LogisticaInteligentePage() {
                       </div>
 
                       <div className="flex-1 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Coluna na Auditoria</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Documento Auditoria</label>
                         <select 
                           className="w-full h-11 px-4 rounded-xl border-slate-200 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 transition-all bg-white shadow-xs appearance-none"
                           value={map.col2}
@@ -291,12 +324,12 @@ export default function LogisticaInteligentePage() {
 
                       <div className="lg:flex-[2.5] space-y-2">
                         <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest pl-1 flex items-center gap-1">
-                          <Cpu className="w-3 h-3" /> Instrução de Auditoria (Smart Prompt)
+                          <Cpu className="w-3 h-3" /> Regra Estratégica (Opcional)
                         </label>
                         <div className="flex gap-3">
                           <input 
                             type="text" 
-                            placeholder="Ex: 'Igualar se bater parcial' ou 'Dividir por saco de 60kg'"
+                            placeholder="Ex: 'Ignorar zeros' ou 'Converter para KG'"
                             className="flex-1 h-11 px-4 rounded-xl border-emerald-100 bg-emerald-50/30 text-emerald-900 placeholder:text-emerald-400 focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
                             value={map.prompt}
                             onChange={(e) => updateMapping(index, 'prompt', e.target.value)}
@@ -316,8 +349,8 @@ export default function LogisticaInteligentePage() {
 
               <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                 <Button variant="secondary" onClick={() => setStep(1)}>Voltar</Button>
-                <Button onClick={handleRunComparison} loading={loading} className="px-10">
-                  Executar Auditoria Estratégica <Cpu className="w-5 h-5" />
+                <Button onClick={handleRunComparison} loading={loading} className="px-10 h-12 text-md">
+                  Processar Auditoria Inteligente <Cpu className="ml-2 w-5 h-5" />
                 </Button>
               </div>
             </Card>
@@ -330,23 +363,21 @@ export default function LogisticaInteligentePage() {
               {results.analise_ia && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-r from-slate-900 via-emerald-900 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden"
+                  className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden"
                 >
-                  <div className="absolute top-0 right-0 p-8 opacity-10">
-                    <Cpu className="w-48 h-48 rotate-12" />
+                  <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Cpu className="w-64 h-64 rotate-12" />
                   </div>
                   
-                  <div className="relative flex flex-col md:flex-row gap-8">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-emerald-500/20 rounded-lg backdrop-blur-sm">
-                          <Cpu className="w-6 h-6 text-emerald-400" />
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight">Veredito da Inteligência Artificial</h2>
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-emerald-500/20 rounded-xl backdrop-blur-sm">
+                        <Cpu className="w-8 h-8 text-emerald-400" />
                       </div>
-                      <div className="prose prose-invert prose-emerald max-w-none text-slate-200 text-lg lg:text-xl leading-relaxed italic">
-                        "{results.analise_ia}"
-                      </div>
+                      <h2 className="text-3xl font-black tracking-tight">Análise Executiva</h2>
+                    </div>
+                    <div className="max-w-4xl text-emerald-50 text-xl leading-relaxed font-medium italic">
+                      "{results.analise_ia}"
                     </div>
                   </div>
                 </motion.div>
@@ -354,13 +385,11 @@ export default function LogisticaInteligentePage() {
             </AnimatePresence>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               <Card>
-                  <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900 uppercase tracking-wide text-sm flex items-center gap-2">
-                       Visão Geral do Lote
-                    </h3>
-                  </div>
-                  <div className="p-8 h-72">
+               <Card className="p-8">
+                  <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-8 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Resumo das Conformidades
+                  </h3>
+                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -370,51 +399,51 @@ export default function LogisticaInteligentePage() {
                             { name: 'Faltas Auditoria', value: results?.faltam_no_comparacao?.length || 0 },
                             { name: 'Desconhecidos', value: results?.termos_desconhecidos?.length || 0 },
                           ].filter(d => d.value > 0)}
-                          cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value"
+                          cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value"
                         >
-                          {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
+                          {COLORS.map((color, i) => <Cell key={i} fill={color} stroke="none" />)}
                         </Pie>
-                        <RechartsTooltip />
-                        <Legend iconType="circle" />
+                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                </Card>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 shadow-sm">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-black text-emerald-800 text-xs uppercase tracking-widest">Conferem</span>
-                      <span className="bg-emerald-200 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-full">{results?.conferem?.length || 0}</span>
+               <div className="grid grid-cols-1 gap-6">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-black text-emerald-900 text-sm uppercase tracking-widest pl-1">Conferência OK</span>
+                      <span className="bg-emerald-600 text-white text-xs font-black px-3 py-1 rounded-full">{results?.conferem?.length || 0}</span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-emerald-200">
                       {results?.conferem?.length ? results.conferem.map((v, i) => (
-                        <div key={i} className="bg-white p-2.5 rounded-lg text-xs font-bold text-emerald-700 shadow-xs border border-emerald-50">{v}</div>
-                      )) : <p className="text-[10px] text-emerald-300 italic">Nada para exibir</p>}
+                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-emerald-800 border border-emerald-100/50">{v}</div>
+                      )) : <p className="text-xs text-emerald-400 italic text-center py-4">Nenhum item conciliado ainda.</p>}
                     </div>
                   </div>
 
-                  <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 shadow-sm">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-black text-rose-800 text-xs uppercase tracking-widest">Divergências</span>
-                      <span className="bg-rose-200 text-rose-900 text-[10px] font-black px-2 py-0.5 rounded-full">{results?.faltam_no_base?.length || 0}</span>
+                  <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-black text-rose-900 text-sm uppercase tracking-widest pl-1">Divergências</span>
+                      <span className="bg-rose-600 text-white text-xs font-black px-3 py-1 rounded-full">{results?.faltam_no_base?.length || 0}</span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-rose-200">
                        {results?.faltam_no_base?.length ? results.faltam_no_base.map((v, i) => (
-                        <div key={i} className="bg-white p-2.5 rounded-lg text-xs font-bold text-rose-700 shadow-xs border border-rose-50">{v}</div>
-                      )) : <p className="text-[10px] text-rose-300 italic">Tudo em conformidade</p>}
+                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-rose-800 border border-rose-100/50">{v}</div>
+                      )) : <p className="text-xs text-rose-400 italic text-center py-4">Zero divergências encontradas.</p>}
                     </div>
                   </div>
                </div>
             </div>
 
-            <div className="flex justify-between items-center pt-8 border-t border-slate-100">
-               <div className="flex gap-2">
-                 <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all">
-                    <Download className="w-4 h-4" /> Exportar Relatório PDF
-                 </button>
-               </div>
-               <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">AGROSERV ERP v4.0 • MÓDULO LOGÍSTICA</p>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-10 border-t border-slate-100">
+               <Button className="w-full md:w-auto px-8 bg-slate-900 hover:bg-slate-800">
+                  <Download className="w-4 h-4" /> Baixar Relatório Executivo (.CSV)
+               </Button>
+               <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] order-first md:order-last">
+                 AGROSERV ERP • PLATAFORMA DE INTELIGÊNCIA LOGÍSTICA
+               </p>
             </div>
           </motion.div>
         )}
