@@ -134,7 +134,7 @@ export default function ComparacaoLogisticaPage() {
     setComparisonId(null);
 
     const formData = new FormData();
-    // NOMES EXATOS QUE O FASTAPI ESPERA (arquivo_1, arquivo_2, colunas_selecionadas)
+    // NOMES EXATOS QUE O FASTAPI ESPERA (Ajustado para arquivo_1, arquivo_2, colunas_selecionadas)
     formData.append('arquivo_1', fileBase);
     formData.append('arquivo_2', fileCompare);
     formData.append('colunas_selecionadas', JSON.stringify(mappings));
@@ -377,10 +377,10 @@ export default function ComparacaoLogisticaPage() {
             
             <div className="max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               {colsFile1.map((col1) => (
-                <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-                  <div className="text-sm font-bold text-gray-700 truncate">{col1}</div>
+                <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
+                  <div className="text-sm font-bold text-green-700 truncate uppercase tracking-tight">{col1}</div>
                   <select 
-                    className="block w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 shadow-sm"
+                    className="block w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 shadow-sm text-gray-800 font-medium bg-gray-50/50"
                     onChange={(e) => updateMapping(col1, e.target.value)}
                     value={mappings.find(m => m.col1 === col1)?.col2 || ""}
                   >
