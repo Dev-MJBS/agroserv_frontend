@@ -423,16 +423,26 @@ export default function ComparacaoLogisticaPage() {
               {colsFile1.map((col1) => (
                 <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
                   <div className="text-md font-extrabold text-green-900 truncate uppercase tracking-wider">{col1}</div>
-                  <select 
-                    className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
-                    onChange={(e) => updateMapping(col1, e.target.value)}
-                    value={mappings.find(m => m.col1 === col1)?.col2 || ""}
-                  >
-                    <option value="">Não mapear</option>
-                    {colsFile2.map(col2 => (
-                      <option key={col2} value={col2}>{col2}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select 
+                      className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                      onChange={(e) => updateMapping(col1, e.target.value)}
+                      value={mappings.find(m => m.col1 === col1)?.col2 || ""}
+                    >
+                      <option value="">Não mapear</option>
+                      {colsFile2.map(col2 => (
+                        <option key={col2} value={col2}>{col2}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 focus:ring-2 focus:ring-green-600"
+                      onClick={() => openPromptModal(col1)}
+                    >
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
