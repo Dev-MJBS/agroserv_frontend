@@ -149,10 +149,10 @@ export default function ComparacaoLogisticaPage() {
     setComparisonId(null);
 
     const formData = new FormData();
-    // NOMES EXATOS QUE O FASTAPI ESPERA (Ajustado para arquivo_1, arquivo_2, colunas_selecionadas)
+    // NOMES EXATOS QUE O BACKEND ESPERA (arquivo_1, arquivo_2, mapeamento)
     formData.append('arquivo_1', fileBase);
     formData.append('arquivo_2', fileCompare);
-    formData.append('colunas_selecionadas', JSON.stringify(mappings));
+    formData.append('mapeamento', JSON.stringify(mappings));
 
     try {
       const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
