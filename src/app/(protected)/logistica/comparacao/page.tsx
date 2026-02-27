@@ -9,6 +9,7 @@ interface ComparisonResults {
   faltam_no_base: string[];
   faltam_no_comparacao: string[];
   termos_desconhecidos: string[];
+  analise_ia?: string; // Análise estratégica gerada pelo Gemini 2.0
 }
 
 interface ColumnMapping {
@@ -31,6 +32,7 @@ export default function ComparacaoLogisticaPage() {
   // Mapeamento selecionado: [{ col1: 'A', col2: 'B' }]
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [results, setResults] = useState<ComparisonResults | null>(null);
+  const [analyzeIA, setAnalyzeIA] = useState<string | null>(null); // Armazena a análise da IA
   
   // Estados de UI
   const [loading, setLoading] = useState<boolean>(false);
@@ -168,6 +170,7 @@ export default function ComparacaoLogisticaPage() {
       // 2. VERIFICAÇÃO DE DADOS: Use 'optional chaining' (?.) para segurança
       if (result?.conferem) {
         setResults(result);
+        setAnalyzeIA(result.analise_ia || null); // Captura a análise da IA
         setStep(4);
       } else {
         console.warn("Nenhum dado retornado ou formato inesperado", result);
@@ -195,7 +198,8 @@ export default function ComparacaoLogisticaPage() {
         body: JSON.stringify({
           data: results,
           name: `Comparação - ${new Date().toLocaleDateString()}`,
-          mappings: mappings
+          mappings: mappings,
+          analise_ia: analyzeIA // Inclui a análise da IA no salvamento
         }),
       });
 
@@ -302,6 +306,7 @@ export default function ComparacaoLogisticaPage() {
     setColsFile2([]);
     setMappings([]);
     setResults(null);
+    setAnalyzeIA(null);
     setError(null);
     setSuccess(null);
     setComparisonId(null);
@@ -578,6 +583,23 @@ export default function ComparacaoLogisticaPage() {
 
               </div>
             </div>
+
+            {/* Análise de IA */}
+            {analyzeIA && (
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5a4 4 0 100-8 4 4 0 000 8z"></path>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-purple-900 font-bold text-lg mb-2">Análise Estratégica (IA)</h3>
+                    <p className="text-purple-800 text-sm leading-relaxed whitespace-pre-wrap">{analyzeIA}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="pt-6 border-t border-gray-100 flex justify-end">
               <button onClick={resetFlow} className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
