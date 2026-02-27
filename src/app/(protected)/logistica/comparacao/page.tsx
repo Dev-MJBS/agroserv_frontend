@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { AnaliseIARenderer } from '@/components/AnaliseIARenderer';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -358,29 +359,14 @@ export default function LogisticaInteligentePage() {
         )}
 
         {step === 3 && results && (
-          <motion.div key="step3" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+          <motion.div key="step3" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
             <AnimatePresence>
               {results.analise_ia && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 p-8 opacity-5">
-                    <Cpu className="w-64 h-64 rotate-12" />
-                  </div>
-                  
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-emerald-500/20 rounded-xl backdrop-blur-sm">
-                        <Cpu className="w-8 h-8 text-emerald-400" />
-                      </div>
-                      <h2 className="text-3xl font-black tracking-tight">Análise Executiva</h2>
-                    </div>
-                    <div className="max-w-4xl text-emerald-50 text-xl leading-relaxed font-medium italic">
-                      "{results.analise_ia}"
-                    </div>
-                  </div>
-                </motion.div>
+                <AnaliseIARenderer 
+                   text={results.analise_ia} 
+                   variant="dark"
+                   title="Relatório Estratégico de Auditoria"
+                />
               )}
             </AnimatePresence>
 
