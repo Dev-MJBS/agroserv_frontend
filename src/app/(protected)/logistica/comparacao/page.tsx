@@ -1,703 +1,424 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useState, useRef } from 'react';
+import axios from 'axios';
+import { 
+  Upload, 
+  ArrowRight, 
+  CheckCircle2, 
+  AlertCircle, 
+  Cpu, 
+  Download, 
+  Trash2, 
+  RefreshCcw,
+  PlusCircle,
+  ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
-// Tipagens para os resultados da API
+// --- Types ---
+interface ColumnMapping {
+  col1: string;
+  col2: string;
+  prompt: string;
+}
+
 interface ComparisonResults {
   conferem: string[];
   faltam_no_base: string[];
   faltam_no_comparacao: string[];
   termos_desconhecidos: string[];
-  analise_ia?: string; // Análise estratégica gerada pelo Gemini 2.0
+  analise_ia?: string;
 }
 
-interface ColumnMapping {
-  col1: string;
-  col2: string;
-  prompt?: string;
-}
+const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#64748b'];
 
-const COLORS = ['#22c55e', '#ef4444', '#f97316', '#64748b']; // Verde, Vermelho, Laranja, Cinza
+// --- Helper Components ---
+const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
 
-export default function ComparacaoLogisticaPage() {
-  // Estados de fluxo e dados
-  const [step, setStep] = useState<number>(1);
-  const [fileBase, setFileBase] = useState<File | null>(null);
-  const [fileCompare, setFileCompare] = useState<File | null>(null);
-  
-  // Colunas extraídas de cada ficheiro
-  const [colsFile1, setColsFile1] = useState<string[]>([]);
-  const [colsFile2, setColsFile2] = useState<string[]>([]);
-  
-  // Mapeamento selecionado: [{ col1: 'A', col2: 'B' }]
-  const [mappings, setMappings] = useState<ColumnMapping[]>([]);
-  const [results, setResults] = useState<ComparisonResults | null>(null);
-  const [analyzeIA, setAnalyzeIA] = useState<string | null>(null); // Armazena a análise da IA
-  
-  // Estados de UI
-  const [loading, setLoading] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [exporting, setExporting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [comparisonId, setComparisonId] = useState<string | null>(null);
-
-  // Refs para os inputs de ficheiro
-  const fileBaseRef = useRef<HTMLInputElement>(null);
-  const fileCompareRef = useRef<HTMLInputElement>(null);
-
-  // Base da API centralizada com o prefixo /api
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '') + '/api';
-
-  // Passo 1: Analisar colunas do Ficheiro 1 (Base)
-  const handleAnalyzeBase = async () => {
-    if (!fileBase) {
-      setError('Por favor, selecione o documento base primeiro.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append('arquivo', fileBase);
-
-    try {
-      const response = await fetch(`${apiUrl}/logistica/analisar-colunas`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || 'Falha ao analisar o ficheiro.';
-        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
-      }
-
-      const columns = Array.isArray(data) ? data : data.colunas || [];
-      
-      if (columns.length === 0) throw new Error('Nenhuma coluna encontrada no documento.');
-
-      setColsFile1(columns);
-      setStep(2);
-    } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro ao processar o ficheiro.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Passo 3: Analisar colunas do Ficheiro 2 (Comparação)
-  const handleAnalyzeCompare = async () => {
-    if (!fileCompare) return;
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append('arquivo', fileCompare);
-
-    try {
-      const response = await fetch(`${apiUrl}/logistica/analisar-colunas`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || 'Falha ao analisar o ficheiro.';
-        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
-      }
-
-      const columns = Array.isArray(data) ? data : data.colunas || [];
-      setColsFile2(columns);
-      setStep(3); // Vai para o ecrã de Mapeamento
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Atualizar mapeamento
-  const updateMapping = (col1: string, col2: string) => {
-    setMappings(prev => {
-      const filtered = prev.filter(m => m.col1 !== col1);
-      if (col2 === "") return filtered;
-      return [...filtered, { col1, col2 }];
-    });
-  };
-
-  // Passo Final: Comparar com Mapeamento
-  const handleCompare = async () => {
-    if (!fileBase || !fileCompare || mappings.length === 0) {
-      setError('Ambos os documentos e ao menos um mapeamento são necessários.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    setComparisonId(null);
-
-    const formData = new FormData();
-    // NOMES EXATOS QUE O BACKEND ESPERA (arquivo_1, arquivo_2, mapeamento)
-    formData.append('arquivo_1', fileBase);
-    formData.append('arquivo_2', fileCompare);
-    // Garante que todos os mapeamentos têm o campo prompt
-    const mappingData = mappings.map(m => ({
-      col1: m.col1,
-      col2: m.col2,
-      prompt: m.prompt || ""
-    }));
-    formData.append('mapeamento', JSON.stringify(mappingData));
-
-    try {
-      const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      // 1. VERIFICAÇÃO CRUCIAL: Se a resposta não for OK, pare aqui!
-      if (!response.ok) {
-        console.error("Erro retornado pelo servidor:", result);
-        const msg = result.message || result.detail || "Falha na análise dos documentos";
-        alert(`Erro: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        return; // Impede que o código abaixo execute e quebre o app
-      }
-
-      // 2. VERIFICAÇÃO DE DADOS: Use 'optional chaining' (?.) para segurança
-      if (result?.conferem) {
-        setResults(result);
-        setAnalyzeIA(result.analise_ia || null); // Captura a análise da IA
-        setStep(4);
-      } else {
-        console.warn("Nenhum dado retornado ou formato inesperado", result);
-        setError("O servidor não retornou dados de comparação válidos.");
-      }
-    } catch (error: any) {
-      console.error("Erro de conexão com o servidor:", error);
-      setError(error.message || 'Erro de rede ou conexão com o servidor.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Salvar Comparação
-  const handleSave = async () => {
-    if (!results) return;
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await fetch(`${apiUrl}/logistica/salvar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: results,
-          name: `Comparação - ${new Date().toLocaleDateString()}`,
-          mappings: mappings,
-          analise_ia: analyzeIA // Inclui a análise da IA no salvamento
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || 'Erro ao salvar.';
-        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
-      }
-      
-      setComparisonId(data.id || "temp-id"); // Se o backend retornar o ID
-      setSuccess('Comparação salva com sucesso!');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Excluir Comparação
-  const handleDelete = async () => {
-    if (!comparisonId) return;
-    if (!confirm('Tem certeza que deseja excluir esta comparação salva?')) return;
-
-    setSaving(true);
-    try {
-      const response = await fetch(`${apiUrl}/logistica/excluir-comparacao/${comparisonId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || 'Erro ao excluir.';
-        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
-      }
-      
-      setComparisonId(null);
-      setSuccess('Comparação removida.');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Exportar PDF
-  const handleExportPDF = async () => {
-    if (!results) return;
-    setExporting(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${apiUrl}/logistica/exportar-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(results),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({ message: 'Erro ao gerar PDF.' }));
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || 'Erro ao gerar PDF.';
-        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `comparacao_${new Date().getTime()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  // Preparar dados para o gráfico
-  const getChartData = () => {
-    if (!results) return [];
-    return [
-      { name: 'Conferem', value: results.conferem?.length || 0 },
-      { name: 'Faltam no Base', value: results.faltam_no_base?.length || 0 },
-      { name: 'Faltam na Comparação', value: results.faltam_no_comparacao?.length || 0 },
-      { name: 'Desconhecidos', value: results.termos_desconhecidos?.length || 0 },
-    ].filter(item => item.value > 0);
-  };
-
-  // Resetar fluxo
-  const resetFlow = () => {
-    setStep(1);
-    setFileBase(null);
-    setFileCompare(null);
-    setColsFile1([]);
-    setColsFile2([]);
-    setMappings([]);
-    setResults(null);
-    setAnalyzeIA(null);
-    setError(null);
-    setSuccess(null);
-    setComparisonId(null);
-  };
-
-  // Estados de UI
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalCol, setModalCol] = useState<string | null>(null);
-  const [modalPrompt, setModalPrompt] = useState<string>("");
-
-  // Abrir modal para instruções específicas da coluna
-  const openPromptModal = (col1: string) => {
-    const mapping = mappings.find(m => m.col1 === col1);
-    setModalCol(col1);
-    setModalPrompt(mapping?.prompt || "");
-    setModalOpen(true);
-  };
-
-  const closePromptModal = () => {
-    setModalOpen(false);
-    setModalCol(null);
-    setModalPrompt("");
-  };
-
-  const savePromptModal = () => {
-    if (!modalCol) return;
-    setMappings(prev => {
-      return prev.map(m =>
-        m.col1 === modalCol ? { ...m, prompt: modalPrompt } : m
-      );
-    });
-    closePromptModal();
+const Button = ({ 
+  children, 
+  loading = false, 
+  variant = 'primary', 
+  ...props 
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) => {
+  const baseStyles = "px-4 py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm";
+  const variants = {
+    primary: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
+    secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+    danger: "bg-rose-600 text-white hover:bg-rose-700",
+    ghost: "bg-transparent text-slate-500 hover:bg-slate-100"
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <button className={`${baseStyles} ${variants[variant]}`} disabled={loading} {...props}>
+      {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : children}
+    </button>
+  );
+};
+
+export default function LogisticaInteligentePage() {
+  // --- States ---
+  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Upload, 2: Mapping, 3: Results
+  const [file1, setFile1] = useState<File | null>(null);
+  const [file2, setFile2] = useState<File | null>(null);
+  const [cols1, setCols1] = useState<string[]>([]);
+  const [cols2, setCols2] = useState<string[]>([]);
+  const [mappings, setMappings] = useState<ColumnMapping[]>([]);
+  const [results, setResults] = useState<ComparisonResults | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef1 = useRef<HTMLInputElement>(null);
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
+  
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '') + '/api';
+
+  // --- Handlers ---
+  const analyzeFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    const res = await axios.post(`${apiUrl}/logistica/analisar-colunas`, formData);
+    return Array.isArray(res.data) ? res.data : res.data.colunas || [];
+  };
+
+  const handleUploadAndAnalyze = async () => {
+    if (!file1 || !file2) {
+      setError("Por favor, selecione os dois arquivos para comparação.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [res1, res2] = await Promise.all([
+        analyzeFile(file1),
+        analyzeFile(file2)
+      ]);
+
+      setCols1(res1);
+      setCols2(res2);
+      
+      const initialMappings = res1.slice(0, 3).map((c1: string) => ({
+        col1: c1,
+        col2: '',
+        prompt: ''
+      }));
+      setMappings(initialMappings.length > 0 ? initialMappings : [{ col1: '', col2: '', prompt: '' }]);
+      
+      setStep(2);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Erro ao analisar colunas. Verifique o formato dos arquivos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRunComparison = async () => {
+    const validMappings = mappings.filter(m => m.col1 && m.col2);
+    if (validMappings.length === 0) {
+      setError("Adicione pelo menos um mapeamento válido.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('arquivo_1', file1!);
+    formData.append('arquivo_2', file2!);
+    formData.append('mapeamento', JSON.stringify(validMappings));
+
+    try {
+      const { data } = await axios.post(`${apiUrl}/logistica/comparar-documentos`, formData);
+      setResults(data);
+      setStep(3);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Algo deu errado durante a comparação estratégica.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addMappingRow = () => {
+    setMappings([...mappings, { col1: '', col2: '', prompt: '' }]);
+  };
+
+  const removeMappingRow = (index: number) => {
+    setMappings(mappings.filter((_, i) => i !== index));
+  };
+
+  const updateMapping = (index: number, key: keyof ColumnMapping, value: string) => {
+    const newMappings = [...mappings];
+    newMappings[index] = { ...newMappings[index], [key]: value };
+    setMappings(newMappings);
+  };
+
+  const resetAll = () => {
+    setStep(1);
+    setFile1(null);
+    setFile2(null);
+    setMappings([]);
+    setResults(null);
+    setError(null);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Comparação de Documentos</h1>
-          <p className="text-gray-500 mt-1">Módulo de Logística - Conciliação de Cargas e Entregas</p>
-        </div>
-        {step > 1 && (
-          <button onClick={resetFlow} className="text-sm text-gray-500 hover:text-gray-700 underline">
-            Recomeçar
-          </button>
-        )}
-      </div>
-
-      {/* Indicador de Passos */}
-      <div className="flex items-center justify-between mb-8 relative">
-        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10"></div>
-        {[1, 2, 3, 4].map((s) => (
-          <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${step >= s ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'} transition-all shadow-sm`}>
-            {s}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+              Logística Inteligente
+            </span>
           </div>
-        ))}
-      </div>
-
-      {/* Mensagem de Erro Global */}
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
-          <p className="text-red-700 text-sm font-medium">{error}</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+            Auditoria de Documentos <span className="text-emerald-600">IA</span>
+          </h1>
+          <p className="text-slate-500 font-medium">Conciliação estratégica e análise de divergências com Gemini 2.0</p>
         </div>
-      )}
-
-      {/* Mensagem de Sucesso */}
-      {success && (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md">
-          <p className="text-green-700 text-sm font-medium">{success}</p>
-        </div>
-      )}
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         
-        {/* PASSO 1: Upload Base */}
+        {step > 1 && (
+          <Button variant="secondary" onClick={resetAll}>
+            <RefreshCcw className="w-4 h-4" /> Nova Auditoria
+          </Button>
+        )}
+      </header>
+
+      {error && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-50 border border-rose-200 p-4 rounded-xl flex items-start gap-3 text-rose-800 shadow-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <p className="text-sm font-semibold">{error}</p>
+        </motion.div>
+      )}
+
+      <AnimatePresence mode="wait">
         {step === 1 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-xl font-semibold text-gray-800">Passo 1: Documento Base</h2>
-            <p className="text-sm text-gray-500">Faça o upload do ficheiro principal (ex: Relatório do Sistema).</p>
-            
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => fileBaseRef.current?.click()}>
-              <input 
-                type="file" 
-                className="hidden" 
-                ref={fileBaseRef} 
-                onChange={(e) => setFileBase(e.target.files?.[0] || null)}
-                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-              />
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-              <p className="mt-2 text-sm text-gray-600 font-medium">
-                {fileBase ? fileBase.name : 'Clique para selecionar o primeiro ficheiro'}
-              </p>
-            </div>
-
-            <button 
-              onClick={handleAnalyzeBase}
-              disabled={!fileBase || loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex justify-center items-center"
-            >
-              {loading ? <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span> : 'Analisar Documento Base'}
-            </button>
-          </div>
-        )}
-
-        {/* PASSO 2: Upload Ficheiro 2 */}
-        {step === 2 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-xl font-semibold text-gray-800">Passo 2: Documento de Comparação</h2>
-            <p className="text-sm text-gray-500">Faça o upload do segundo ficheiro para podermos extrair as colunas.</p>
-            
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => fileCompareRef.current?.click()}>
-              <input 
-                type="file" 
-                className="hidden" 
-                ref={fileCompareRef} 
-                onChange={(e) => setFileCompare(e.target.files?.[0] || null)}
-                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-              />
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-              <p className="mt-2 text-sm text-gray-600 font-medium">{fileCompare ? fileCompare.name : 'Selecione o segundo ficheiro'}</p>
-            </div>
-
-            <div className="flex gap-4">
-              <button onClick={() => setStep(1)} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Voltar</button>
-              <button 
-                onClick={handleAnalyzeCompare}
-                disabled={!fileCompare || loading}
-                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex justify-center items-center"
+          <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documento Base (Arquivo 1)</label>
+              <div 
+                onClick={() => fileInputRef1.current?.click()}
+                className={`group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer ${file1 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'}`}
               >
-                {loading ? <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span> : 'Analisar Colunas'}
-              </button>
+                <input type="file" ref={fileInputRef1} className="hidden" onChange={(e) => setFile1(e.target.files?.[0] || null)} />
+                <div className={`p-4 rounded-full mb-4 transition-transform group-hover:scale-110 ${file1 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  {file1 ? <CheckCircle2 className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
+                </div>
+                <h3 className="font-bold text-slate-900">{file1 ? file1.name : "Selecionar Documento Principal"}</h3>
+                <p className="text-xs text-slate-500 mt-1">Excel, CSV ou Planilha do Sistema</p>
+              </div>
             </div>
-          </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documento Auditoria (Arquivo 2)</label>
+              <div 
+                onClick={() => fileInputRef2.current?.click()}
+                className={`group border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer ${file2 ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'}`}
+              >
+                <input type="file" ref={fileInputRef2} className="hidden" onChange={(e) => setFile2(e.target.files?.[0] || null)} />
+                <div className={`p-4 rounded-full mb-4 transition-transform group-hover:scale-110 ${file2 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  {file2 ? <CheckCircle2 className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
+                </div>
+                <h3 className="font-bold text-slate-900">{file2 ? file2.name : "Selecionar Documento Comparação"}</h3>
+                <p className="text-xs text-slate-500 mt-1">Canhotos, XMLs ou Logística Terceira</p>
+              </div>
+            </div>
+
+            <div className="md:col-span-2 pt-4">
+              <Button onClick={handleUploadAndAnalyze} loading={loading} className="w-full h-14 text-lg">
+                Começar Mapeamento Inteligente <ArrowRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </motion.div>
         )}
 
-        {/* PASSO 3: Mapeamento de Colunas */}
-        {step === 3 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-xl font-semibold text-gray-800">Passo 3: Mapear Colunas</h2>
-            <p className="text-sm text-gray-500">Relacione as colunas da Base com as colunas da Comparação.</p>
-            
-            <div className="max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              {colsFile1.map((col1) => {
-                const mapping = mappings.find(m => m.col1 === col1);
-                const hasPrompt = !!mapping?.prompt && mapping.prompt.trim() !== "";
-                return (
-                  <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
-                    <div className="text-md font-extrabold text-green-900 truncate uppercase tracking-wider">{col1}</div>
-                    <div className="flex items-center gap-2">
-                      <select 
-                        className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
-                        onChange={(e) => updateMapping(col1, e.target.value)}
-                        value={mapping?.col2 || ""}
-                      >
-                        <option value="">Não mapear</option>
-                        {colsFile2.map(col2 => (
-                          <option key={col2} value={col2}>{col2}</option>
-                        ))}
-                      </select>
-                      <button
-                        className={`p-2 rounded-full border-2 ${hasPrompt ? 'bg-yellow-100 border-yellow-400 shadow-yellow-200 shadow-md animate-pulse' : 'bg-gray-200 border-gray-300'} hover:bg-gray-300 focus:ring-2 focus:ring-green-600`}
-                        onClick={() => openPromptModal(col1)}
-                        type="button"
-                        title={hasPrompt ? 'Esta coluna possui uma instrução especial' : 'Adicionar instrução especial'}
-                      >
-                        <svg className={`w-5 h-5 ${hasPrompt ? 'text-yellow-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
+        {step === 2 && (
+          <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            <Card>
+              <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Mapeamento de Auditoria</h3>
+                  <p className="text-sm text-slate-500">Defina quais colunas devem ser comparadas e adicione regras da IA.</p>
+                </div>
+                <Button variant="secondary" onClick={addMappingRow} className="!py-2">
+                  <PlusCircle className="w-4 h-4" /> Adicionar Relação
+                </Button>
+              </div>
+
+              <div className="p-6">
+                <div className="space-y-6">
+                  {mappings.map((map, index) => (
+                    <motion.div 
+                      key={index} 
+                      className="flex flex-col lg:flex-row gap-4 p-5 rounded-2xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all shadow-sm group"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="flex-1 space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Coluna no Arquivo Base</label>
+                        <select 
+                          className="w-full h-11 px-4 rounded-xl border-slate-200 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 transition-all bg-white shadow-xs appearance-none"
+                          value={map.col1}
+                          onChange={(e) => updateMapping(index, 'col1', e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {cols1.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center justify-center pt-6 text-slate-300">
+                        <ChevronRight className="w-6 h-6 hidden lg:block" />
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Coluna na Auditoria</label>
+                        <select 
+                          className="w-full h-11 px-4 rounded-xl border-slate-200 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 transition-all bg-white shadow-xs appearance-none"
+                          value={map.col2}
+                          onChange={(e) => updateMapping(index, 'col2', e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {cols2.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+
+                      <div className="lg:flex-[2.5] space-y-2">
+                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest pl-1 flex items-center gap-1">
+                          <Cpu className="w-3 h-3" /> Instrução de Auditoria (Smart Prompt)
+                        </label>
+                        <div className="flex gap-3">
+                          <input 
+                            type="text" 
+                            placeholder="Ex: 'Igualar se bater parcial' ou 'Dividir por saco de 60kg'"
+                            className="flex-1 h-11 px-4 rounded-xl border-emerald-100 bg-emerald-50/30 text-emerald-900 placeholder:text-emerald-400 focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
+                            value={map.prompt}
+                            onChange={(e) => updateMapping(index, 'prompt', e.target.value)}
+                          />
+                          <button 
+                            onClick={() => removeMappingRow(index)}
+                            className="h-11 w-11 flex items-center justify-center rounded-xl text-rose-400 hover:bg-rose-50 transition-colors border border-rose-100"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <Button variant="secondary" onClick={() => setStep(1)}>Voltar</Button>
+                <Button onClick={handleRunComparison} loading={loading} className="px-10">
+                  Executar Auditoria Estratégica <Cpu className="w-5 h-5" />
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {step === 3 && results && (
+          <motion.div key="step3" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+            <AnimatePresence>
+              {results.analise_ia && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-r from-slate-900 via-emerald-900 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-8 opacity-10">
+                    <Cpu className="w-48 h-48 rotate-12" />
+                  </div>
+                  
+                  <div className="relative flex flex-col md:flex-row gap-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-emerald-500/20 rounded-lg backdrop-blur-sm">
+                          <Cpu className="w-6 h-6 text-emerald-400" />
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight">Veredito da Inteligência Artificial</h2>
+                      </div>
+                      <div className="prose prose-invert prose-emerald max-w-none text-slate-200 text-lg lg:text-xl leading-relaxed italic">
+                        "{results.analise_ia}"
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+               <Card>
+                  <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900 uppercase tracking-wide text-sm flex items-center gap-2">
+                       Visão Geral do Lote
+                    </h3>
+                  </div>
+                  <div className="p-8 h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Conferem', value: results?.conferem?.length || 0 },
+                            { name: 'Faltas Base', value: results?.faltam_no_base?.length || 0 },
+                            { name: 'Faltas Auditoria', value: results?.faltam_no_comparacao?.length || 0 },
+                            { name: 'Desconhecidos', value: results?.termos_desconhecidos?.length || 0 },
+                          ].filter(d => d.value > 0)}
+                          cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value"
+                        >
+                          {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
+                        </Pie>
+                        <RechartsTooltip />
+                        <Legend iconType="circle" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+               </Card>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-black text-emerald-800 text-xs uppercase tracking-widest">Conferem</span>
+                      <span className="bg-emerald-200 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-full">{results?.conferem?.length || 0}</span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {results?.conferem?.length ? results.conferem.map((v, i) => (
+                        <div key={i} className="bg-white p-2.5 rounded-lg text-xs font-bold text-emerald-700 shadow-xs border border-emerald-50">{v}</div>
+                      )) : <p className="text-[10px] text-emerald-300 italic">Nada para exibir</p>}
+                    </div>
+                  </div>
+
+                  <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-black text-rose-800 text-xs uppercase tracking-widest">Divergências</span>
+                      <span className="bg-rose-200 text-rose-900 text-[10px] font-black px-2 py-0.5 rounded-full">{results?.faltam_no_base?.length || 0}</span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                       {results?.faltam_no_base?.length ? results.faltam_no_base.map((v, i) => (
+                        <div key={i} className="bg-white p-2.5 rounded-lg text-xs font-bold text-rose-700 shadow-xs border border-rose-50">{v}</div>
+                      )) : <p className="text-[10px] text-rose-300 italic">Tudo em conformidade</p>}
+                    </div>
+                  </div>
+               </div>
             </div>
 
-            <div className="flex gap-4 pt-4 border-t border-gray-100">
-              <button onClick={() => setStep(2)} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Voltar</button>
-              <button 
-                onClick={handleCompare}
-                disabled={mappings.length === 0 || loading}
-                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex justify-center items-center"
-              >
-                {loading ? <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span> : `Comparar (${mappings.length} mapeadas)`}
-              </button>
+            <div className="flex justify-between items-center pt-8 border-t border-slate-100">
+               <div className="flex gap-2">
+                 <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all">
+                    <Download className="w-4 h-4" /> Exportar Relatório PDF
+                 </button>
+               </div>
+               <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">AGROSERV ERP v4.0 • MÓDULO LOGÍSTICA</p>
             </div>
-          </div>
+          </motion.div>
         )}
-
-        {/* PASSO 4: Resultados */}
-        {step === 4 && results && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-            {/* Card de Resumo Inteligente IA */}
-            {results.analise_ia && (
-              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-l-4 border-yellow-400 rounded-xl p-6 shadow-md mb-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <svg className="w-7 h-7 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-yellow-900 font-bold text-lg mb-2">Resumo Inteligente</h3>
-                    <div className="prose prose-sm max-w-none text-yellow-800" style={{whiteSpace: 'pre-wrap'}}>{results.analise_ia}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="text-left">
-                <h2 className="text-2xl font-bold text-gray-800">Resultados da Comparação</h2>
-                <p className="text-gray-500">Análise concluída com sucesso.</p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={handleExportPDF}
-                  disabled={exporting}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {exporting ? 'Gerando...' : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                      PDF
-                    </>
-                  )}
-                </button>
-
-                {!comparisonId ? (
-                  <button 
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {saving ? 'Salvando...' : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 002-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                        Salvar
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleDelete}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 border border-red-100"
-                  >
-                    {saving ? 'Excluindo...' : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        Excluir Salva
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Gráfico */}
-              <div className="lg:col-span-1 bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col items-center justify-center min-h-[300px]">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">Visão Geral</h3>
-                <div className="w-full h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={getChartData()}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {getChartData().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={36}/>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Listas de Resultados */}
-              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Conferem */}
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-green-800 font-bold flex justify-between items-center mb-3">
-                    Conferem <span className="bg-green-200 text-green-800 py-1 px-2 rounded-full text-xs">{results?.conferem?.length || 0}</span>
-                  </h3>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results?.conferem?.length > 0 ? results.conferem.map((item, i) => (
-                      <li key={i} className="text-sm text-green-700 bg-white p-2 rounded shadow-sm border border-green-50">{item}</li>
-                    )) : <li className="text-sm text-green-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
-                  </ul>
-                </div>
-
-                {/* Faltam no Base */}
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-red-800 font-bold flex justify-between items-center mb-3">
-                    Faltam no Base <span className="bg-red-200 text-red-800 py-1 px-2 rounded-full text-xs">{results?.faltam_no_base?.length || 0}</span>
-                  </h3>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results?.faltam_no_base?.length > 0 ? results.faltam_no_base.map((item, i) => (
-                      <li key={i} className="text-sm text-red-700 bg-white p-2 rounded shadow-sm border border-red-50">{item}</li>
-                    )) : <li className="text-sm text-red-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
-                  </ul>
-                </div>
-
-                {/* Faltam na Comparação */}
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-orange-800 font-bold flex justify-between items-center mb-3">
-                    Faltam na Comparação <span className="bg-orange-200 text-orange-800 py-1 px-2 rounded-full text-xs">{results?.faltam_no_comparacao?.length || 0}</span>
-                  </h3>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results?.faltam_no_comparacao?.length > 0 ? results.faltam_no_comparacao.map((item, i) => (
-                      <li key={i} className="text-sm text-orange-700 bg-white p-2 rounded shadow-sm border border-orange-50">{item}</li>
-                    )) : <li className="text-sm text-orange-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
-                  </ul>
-                </div>
-
-                {/* Desconhecidos */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-slate-800 font-bold flex justify-between items-center mb-3">
-                    Desconhecidos <span className="bg-slate-200 text-slate-800 py-1 px-2 rounded-full text-xs">{results?.termos_desconhecidos?.length || 0}</span>
-                  </h3>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results?.termos_desconhecidos?.length > 0 ? results.termos_desconhecidos.map((item, i) => (
-                      <li key={i} className="text-sm text-slate-700 bg-white p-2 rounded shadow-sm border border-slate-50">{item}</li>
-                    )) : <li className="text-sm text-slate-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
-                  </ul>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Análise de IA */}
-            {analyzeIA && (
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5a4 4 0 100-8 4 4 0 000 8z"></path>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-purple-900 font-bold text-lg mb-2">Análise Estratégica (IA)</h3>
-                    <p className="text-purple-800 text-sm leading-relaxed whitespace-pre-wrap">{analyzeIA}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="pt-6 border-t border-gray-100 flex justify-end">
-              <button onClick={resetFlow} className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
-                Nova Comparação
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-
-      {/* Modal para Instrução Especial de Coluna */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold mb-2 text-gray-900">Instrução Especial para esta Coluna</h3>
-            <textarea
-              className="w-full border border-gray-300 rounded-lg p-3 text-gray-800 min-h-[80px] mb-4"
-              placeholder="Ex: Multiplique por 60, ignore espaços extras, etc."
-              value={modalPrompt}
-              onChange={e => setModalPrompt(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <button onClick={closePromptModal} className="px-4 py-2 rounded bg-gray-100 text-gray-700 font-medium hover:bg-gray-200">Cancelar</button>
-              <button onClick={savePromptModal} className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700">Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AnimatePresence>
     </div>
   );
 }
