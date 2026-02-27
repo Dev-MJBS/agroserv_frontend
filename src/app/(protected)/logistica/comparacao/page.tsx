@@ -33,14 +33,29 @@ interface ColumnMapping {
 }
 
 interface ComparisonResults {
-  conferem: string[];
-  faltam_no_base: string[];
-  faltam_no_comparacao: string[];
-  termos_desconhecidos: string[];
+  conferem: (string | Record<string, any>)[];
+  faltam_no_base: (string | Record<string, any>)[];
+  faltam_no_comparacao: (string | Record<string, any>)[];
+  termos_desconhecidos: (string | Record<string, any>)[];
   analise_ia?: string;
 }
 
 const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#64748b'];
+
+// --- Helper Functions ---
+const formatListItem = (item: any): string => {
+  if (typeof item === 'string') return item;
+  if (typeof item === 'number') return String(item);
+  if (item && typeof item === 'object') {
+    // Se for um objeto, tenta pegar o primeiro valor ou stringify
+    const values = Object.values(item);
+    if (values.length > 0) {
+      const firstVal = values[0];
+      return typeof firstVal === 'object' ? JSON.stringify(firstVal) : String(firstVal);
+    }
+  }
+  return String(item);
+};
 
 // --- Helper Components ---
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
@@ -375,7 +390,7 @@ export default function LogisticaInteligentePage() {
                   <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-8 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Resumo das Conformidades
                   </h3>
-                  <div className="h-64">
+                  <div className="h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -404,7 +419,9 @@ export default function LogisticaInteligentePage() {
                     </div>
                     <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-emerald-200">
                       {results?.conferem?.length ? results.conferem.map((v, i) => (
-                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-emerald-800 border border-emerald-100/50">{v}</div>
+                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-emerald-800 border border-emerald-100/50">
+                          {formatListItem(v)}
+                        </div>
                       )) : <p className="text-xs text-emerald-400 italic text-center py-4">Nenhum item conciliado ainda.</p>}
                     </div>
                   </div>
@@ -416,7 +433,9 @@ export default function LogisticaInteligentePage() {
                     </div>
                     <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-rose-200">
                        {results?.faltam_no_base?.length ? results.faltam_no_base.map((v, i) => (
-                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-rose-800 border border-rose-100/50">{v}</div>
+                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-rose-800 border border-rose-100/50">
+                          {formatListItem(v)}
+                        </div>
                       )) : <p className="text-xs text-rose-400 italic text-center py-4">Zero divergências encontradas.</p>}
                     </div>
                   </div>
