@@ -44,7 +44,8 @@ export default function ComparacaoLogisticaPage() {
   const fileBaseRef = useRef<HTMLInputElement>(null);
   const fileCompareRef = useRef<HTMLInputElement>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  // Base da API centralizada com o prefixo /api
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '') + '/api';
 
   // Passo 1: Analisar colunas do Ficheiro 1 (Base)
   const handleAnalyzeBase = async () => {
@@ -188,7 +189,7 @@ export default function ComparacaoLogisticaPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`${apiUrl}/logistica/salvar-comparacao`, {
+      const response = await fetch(`${apiUrl}/logistica/salvar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
