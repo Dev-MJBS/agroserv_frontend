@@ -605,48 +605,48 @@ export default function ComparacaoLogisticaPage() {
                 {/* Conferem */}
                 <div className="bg-green-50 border border-green-100 rounded-xl p-4 shadow-sm">
                   <h3 className="text-green-800 font-bold flex justify-between items-center mb-3">
-                    Conferem <span className="bg-green-200 text-green-800 py-1 px-2 rounded-full text-xs">{results.conferem.length}</span>
+                    Conferem <span className="bg-green-200 text-green-800 py-1 px-2 rounded-full text-xs">{results?.conferem?.length || 0}</span>
                   </h3>
                   <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results.conferem.length > 0 ? results.conferem.map((item, i) => (
+                    {results?.conferem?.length > 0 ? results.conferem.map((item, i) => (
                       <li key={i} className="text-sm text-green-700 bg-white p-2 rounded shadow-sm border border-green-50">{item}</li>
-                    )) : <li className="text-sm text-green-600/50 italic">Nenhum item</li>}
+                    )) : <li className="text-sm text-green-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
                   </ul>
                 </div>
 
                 {/* Faltam no Base */}
                 <div className="bg-red-50 border border-red-100 rounded-xl p-4 shadow-sm">
                   <h3 className="text-red-800 font-bold flex justify-between items-center mb-3">
-                    Faltam no Base <span className="bg-red-200 text-red-800 py-1 px-2 rounded-full text-xs">{results.faltam_no_base.length}</span>
+                    Faltam no Base <span className="bg-red-200 text-red-800 py-1 px-2 rounded-full text-xs">{results?.faltam_no_base?.length || 0}</span>
                   </h3>
                   <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results.faltam_no_base.length > 0 ? results.faltam_no_base.map((item, i) => (
+                    {results?.faltam_no_base?.length > 0 ? results.faltam_no_base.map((item, i) => (
                       <li key={i} className="text-sm text-red-700 bg-white p-2 rounded shadow-sm border border-red-50">{item}</li>
-                    )) : <li className="text-sm text-red-600/50 italic">Nenhum item</li>}
+                    )) : <li className="text-sm text-red-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
                   </ul>
                 </div>
 
                 {/* Faltam na Comparação */}
                 <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 shadow-sm">
                   <h3 className="text-orange-800 font-bold flex justify-between items-center mb-3">
-                    Faltam na Comparação <span className="bg-orange-200 text-orange-800 py-1 px-2 rounded-full text-xs">{results.faltam_no_comparacao.length}</span>
+                    Faltam na Comparação <span className="bg-orange-200 text-orange-800 py-1 px-2 rounded-full text-xs">{results?.faltam_no_comparacao?.length || 0}</span>
                   </h3>
                   <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results.faltam_no_comparacao.length > 0 ? results.faltam_no_comparacao.map((item, i) => (
+                    {results?.faltam_no_comparacao?.length > 0 ? results.faltam_no_comparacao.map((item, i) => (
                       <li key={i} className="text-sm text-orange-700 bg-white p-2 rounded shadow-sm border border-orange-50">{item}</li>
-                    )) : <li className="text-sm text-orange-600/50 italic">Nenhum item</li>}
+                    )) : <li className="text-sm text-orange-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
                   </ul>
                 </div>
 
                 {/* Desconhecidos */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
                   <h3 className="text-slate-800 font-bold flex justify-between items-center mb-3">
-                    Desconhecidos <span className="bg-slate-200 text-slate-800 py-1 px-2 rounded-full text-xs">{results.termos_desconhecidos.length}</span>
+                    Desconhecidos <span className="bg-slate-200 text-slate-800 py-1 px-2 rounded-full text-xs">{results?.termos_desconhecidos?.length || 0}</span>
                   </h3>
                   <ul className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {results.termos_desconhecidos.length > 0 ? results.termos_desconhecidos.map((item, i) => (
+                    {results?.termos_desconhecidos?.length > 0 ? results.termos_desconhecidos.map((item, i) => (
                       <li key={i} className="text-sm text-slate-700 bg-white p-2 rounded shadow-sm border border-slate-50">{item}</li>
-                    )) : <li className="text-sm text-slate-600/50 italic">Nenhum item</li>}
+                    )) : <li className="text-sm text-slate-600/50 italic">Nenhum resultado encontrado ou houve um erro na conexão.</li>}
                   </ul>
                 </div>
 
