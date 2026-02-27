@@ -154,21 +154,27 @@ export default function ComparacaoLogisticaPage() {
         body: formData,
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
+      // 1. VERIFICAÇÃO CRUCIAL: Se a resposta não for OK, pare aqui!
       if (!response.ok) {
-        // Se cair aqui, o backend retornou LOG-ERR-MISSING-FIELD ou similar
-        console.error("Erro do Backend:", data);
-        const msg = data.message || data.detail || "Falha na comunicação";
+        console.error("Erro retornado pelo servidor:", result);
+        const msg = result.message || result.detail || "Falha na análise dos documentos";
         alert(`Erro: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-        throw new Error(msg);
+        return; // Impede que o código abaixo execute e quebre o app
       }
 
-      // Sucesso garantido
-      setResults(data);
-      setStep(4);
-    } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro durante a comparação.');
+      // 2. VERIFICAÇÃO DE DADOS: Use 'optional chaining' (?.) para segurança
+      if (result?.conferem) {
+        setResults(result);
+        setStep(4);
+      } else {
+        console.warn("Nenhum dado retornado ou formato inesperado", result);
+        setError("O servidor não retornou dados de comparação válidos.");
+      }
+    } catch (error: any) {
+      console.error("Erro de conexão com o servidor:", error);
+      setError(error.message || 'Erro de rede ou conexão com o servidor.');
     } finally {
       setLoading(false);
     }
