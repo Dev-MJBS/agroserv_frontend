@@ -134,7 +134,7 @@ export default function ComparacaoLogisticaPage() {
     setComparisonId(null);
 
     const formData = new FormData();
-    // NOMES EXATOS QUE O FASTAPI ESPERA
+    // NOMES EXATOS QUE O FASTAPI ESPERA (arquivo_1, arquivo_2, colunas_selecionadas)
     formData.append('arquivo_1', fileBase);
     formData.append('arquivo_2', fileCompare);
     formData.append('colunas_selecionadas', JSON.stringify(mappings));
@@ -143,6 +143,7 @@ export default function ComparacaoLogisticaPage() {
       const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
         method: 'POST',
         body: formData,
+        // O navegador define o Content-Type: multipart/form-data com o boundary correto
       });
 
       if (!response.ok) {
