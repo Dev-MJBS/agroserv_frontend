@@ -66,8 +66,14 @@ export default function ComparacaoLogisticaPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(`Erro no servidor: ${JSON.stringify(errorData) || response.statusText}`);
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        let msg = errorJson.message || errorJson.detail;
+        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
+        
+        alert(`Erro no Backend: ${msg || 'Falha ao analisar o ficheiro.'} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg || 'Erro na análise de colunas');
       }
 
       const data = await response.json();
@@ -99,7 +105,16 @@ export default function ComparacaoLogisticaPage() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Falha ao analisar o segundo documento.');
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        let msg = errorJson.message || errorJson.detail;
+        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
+        
+        alert(`Erro no Backend: ${msg || 'Falha ao analisar o ficheiro.'} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg || 'Erro na análise de colunas');
+      }
 
       const data = await response.json();
       const columns = Array.isArray(data) ? data : data.colunas || [];
@@ -147,8 +162,14 @@ export default function ComparacaoLogisticaPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(`Erro na comparação: ${errorData?.detail?.[0]?.msg || JSON.stringify(errorData) || response.statusText}`);
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        let msg = errorJson.message || errorJson.detail;
+        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
+        
+        alert(`Erro no Backend: ${msg || 'Desconhecido'} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg || 'Erro na comparação');
       }
 
       const data: ComparisonResults = await response.json();
@@ -179,7 +200,14 @@ export default function ComparacaoLogisticaPage() {
         }),
       });
 
-      if (!response.ok) throw new Error('Erro ao salvar comparação.');
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        const msg = errorJson.message || errorJson.detail || 'Erro ao salvar.';
+        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg);
+      }
       
       const data = await response.json();
       setComparisonId(data.id || "temp-id"); // Se o backend retornar o ID
@@ -202,7 +230,14 @@ export default function ComparacaoLogisticaPage() {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Erro ao excluir.');
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        const msg = errorJson.message || errorJson.detail || 'Erro ao excluir.';
+        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg);
+      }
       
       setComparisonId(null);
       setSuccess('Comparação removida.');
@@ -226,7 +261,14 @@ export default function ComparacaoLogisticaPage() {
         body: JSON.stringify(results),
       });
 
-      if (!response.ok) throw new Error('Erro ao gerar PDF.');
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
+        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
+        
+        const msg = errorJson.message || errorJson.detail || 'Erro ao gerar PDF.';
+        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        throw new Error(msg);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -378,9 +420,9 @@ export default function ComparacaoLogisticaPage() {
             <div className="max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               {colsFile1.map((col1) => (
                 <div key={col1} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic">
-                  <div className="text-sm font-bold text-green-700 truncate uppercase tracking-tight">{col1}</div>
+                  <div className="text-md font-extrabold text-green-900 truncate uppercase tracking-wider">{col1}</div>
                   <select 
-                    className="block w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 shadow-sm text-gray-800 font-medium bg-gray-50/50"
+                    className="block w-full text-md border-gray-400 rounded-lg focus:ring-green-600 focus:border-green-600 shadow-md text-black font-bold bg-white cursor-pointer hover:bg-gray-50 transition-colors"
                     onChange={(e) => updateMapping(col1, e.target.value)}
                     value={mappings.find(m => m.col1 === col1)?.col2 || ""}
                   >
