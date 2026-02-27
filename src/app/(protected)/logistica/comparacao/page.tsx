@@ -103,6 +103,7 @@ export default function LogisticaInteligentePage() {
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [results, setResults] = useState<ComparisonResults | null>(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef1 = useRef<HTMLInputElement>(null);
@@ -174,6 +175,43 @@ export default function LogisticaInteligentePage() {
       setError(err.response?.data?.message || "Algo deu errado durante a comparação estratégica.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    if (!results) return;
+
+    setDownloading(true);
+    setError(null);
+
+    // Formata os dados no padrão esperado pelo DataFrame do Pandas
+    // Criamos uma lista com todas as ocorrências para um relatório detalhado
+    const exportData = [
+      ...(results.conferem || []).map(v => ({ status: 'CONFERIDO', valor: formatListItem(v) })),
+      ...(results.faltam_no_base || []).map(v => ({ status: 'FALTA NO BASE', valor: formatListItem(v) })),
+      ...(results.faltam_no_comparacao || []).map(v => ({ status: 'FALTA NA AUDITORIA', valor: formatListItem(v) })),
+      ...(results.termos_desconhecidos || []).map(v => ({ status: 'DESCONHECIDO', valor: formatListItem(v) }))
+    ];
+
+    try {
+      const response = await axios.post(
+        `${apiUrl}/logistica/download-csv`, 
+        exportData, 
+        { responseType: 'blob' }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `auditoria_agroserv_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError("Erro ao gerar o download do CSV. Verifique a conexão com o servidor.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -443,7 +481,11 @@ export default function LogisticaInteligentePage() {
             </div>
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-10 border-t border-slate-100">
-               <Button className="w-full md:w-auto px-8 bg-slate-900 hover:bg-slate-800">
+               <Button 
+                  onClick={handleDownloadCSV} 
+                  loading={downloading}
+                  className="w-full md:w-auto px-8 bg-slate-900 hover:bg-slate-800"
+               >
                   <Download className="w-4 h-4" /> Baixar Relatório Executivo (.CSV)
                </Button>
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] order-first md:order-last">
