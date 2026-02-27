@@ -65,18 +65,15 @@ export default function ComparacaoLogisticaPage() {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        let msg = errorJson.message || errorJson.detail;
-        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
-        
-        alert(`Erro no Backend: ${msg || 'Falha ao analisar o ficheiro.'} [Cód: ${errorJson.code || response.status}]`);
-        throw new Error(msg || 'Erro na análise de colunas');
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || 'Falha ao analisar o ficheiro.';
+        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+        throw new Error(msg);
       }
 
-      const data = await response.json();
       const columns = Array.isArray(data) ? data : data.colunas || [];
       
       if (columns.length === 0) throw new Error('Nenhuma coluna encontrada no documento.');
@@ -105,18 +102,15 @@ export default function ComparacaoLogisticaPage() {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        let msg = errorJson.message || errorJson.detail;
-        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
-        
-        alert(`Erro no Backend: ${msg || 'Falha ao analisar o ficheiro.'} [Cód: ${errorJson.code || response.status}]`);
-        throw new Error(msg || 'Erro na análise de colunas');
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || 'Falha ao analisar o ficheiro.';
+        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+        throw new Error(msg);
       }
 
-      const data = await response.json();
       const columns = Array.isArray(data) ? data : data.colunas || [];
       setColsFile2(columns);
       setStep(3); // Vai para o ecrã de Mapeamento
@@ -158,21 +152,19 @@ export default function ComparacaoLogisticaPage() {
       const response = await fetch(`${apiUrl}/logistica/comparar-documentos`, {
         method: 'POST',
         body: formData,
-        // O navegador define o Content-Type: multipart/form-data com o boundary correto
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        let msg = errorJson.message || errorJson.detail;
-        if (Array.isArray(msg)) msg = msg.map((d: any) => `${d.msg} (${d.loc?.join(' -> ')})`).join(', ');
-        
-        alert(`Erro no Backend: ${msg || 'Desconhecido'} [Cód: ${errorJson.code || response.status}]`);
-        throw new Error(msg || 'Erro na comparação');
+        // Se cair aqui, o backend retornou LOG-ERR-MISSING-FIELD ou similar
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || "Falha na comunicação";
+        alert(`Erro: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+        throw new Error(msg);
       }
 
-      const data: ComparisonResults = await response.json();
+      // Sucesso garantido
       setResults(data);
       setStep(4);
     } catch (err: any) {
@@ -200,16 +192,15 @@ export default function ComparacaoLogisticaPage() {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        const msg = errorJson.message || errorJson.detail || 'Erro ao salvar.';
-        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || 'Erro ao salvar.';
+        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
         throw new Error(msg);
       }
       
-      const data = await response.json();
       setComparisonId(data.id || "temp-id"); // Se o backend retornar o ID
       setSuccess('Comparação salva com sucesso!');
     } catch (err: any) {
@@ -230,12 +221,12 @@ export default function ComparacaoLogisticaPage() {
         method: 'DELETE',
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        const msg = errorJson.message || errorJson.detail || 'Erro ao excluir.';
-        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || 'Erro ao excluir.';
+        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
         throw new Error(msg);
       }
       
@@ -262,11 +253,10 @@ export default function ComparacaoLogisticaPage() {
       });
 
       if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`Status: ${response.status} | Código: ${errorJson.code || response.status}`);
-        
-        const msg = errorJson.message || errorJson.detail || 'Erro ao gerar PDF.';
-        alert(`Erro no Backend: ${msg} [Cód: ${errorJson.code || response.status}]`);
+        const data = await response.json().catch(() => ({ message: 'Erro ao gerar PDF.' }));
+        console.error("Erro do Backend:", data);
+        const msg = data.message || data.detail || 'Erro ao gerar PDF.';
+        alert(`Erro no Backend: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
         throw new Error(msg);
       }
 
