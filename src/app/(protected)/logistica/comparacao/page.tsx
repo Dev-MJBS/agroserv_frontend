@@ -12,7 +12,9 @@ import {
   Trash2, 
   RefreshCcw,
   PlusCircle,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
@@ -102,6 +104,7 @@ export default function LogisticaInteligentePage() {
   const [cols2, setCols2] = useState<string[]>([]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [results, setResults] = useState<ComparisonResults | null>(null);
+  const [instrucaoGlobal, setInstrucaoGlobal] = useState('');
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +169,9 @@ export default function LogisticaInteligentePage() {
     formData.append('arquivo_1', file1!);
     formData.append('arquivo_2', file2!);
     formData.append('mapeamento', JSON.stringify(validMappings));
+    if (instrucaoGlobal.trim()) {
+      formData.append('instrucao_global', instrucaoGlobal.trim());
+    }
 
     try {
       const { data } = await axios.post(`${apiUrl}/logistica/comparar-documentos`, formData);
@@ -236,6 +242,7 @@ export default function LogisticaInteligentePage() {
     setMappings([]);
     setResults(null);
     setError(null);
+    setInstrucaoGlobal('');
   };
 
   return (
@@ -312,7 +319,31 @@ export default function LogisticaInteligentePage() {
               </div>
             </div>
 
-            <div className="md:col-span-2 pt-6">
+            <div className="md:col-span-2">
+              <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-100 rounded-lg">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <label className="text-sm font-bold text-emerald-800 uppercase tracking-wide">
+                    Instrução Especial para a IA
+                    <span className="ml-2 text-[10px] font-normal text-emerald-500 normal-case tracking-normal">(opcional)</span>
+                  </label>
+                </div>
+                <textarea
+                  rows={3}
+                  placeholder="Ex: 'Ignore diferenças de capitalização nos nomes de produto. Considere tolerância de ±5% nos valores numéricos. Foco em divergências de quantidade acima de 10 toneladas...'"
+                  className="w-full px-4 py-3 rounded-xl border border-emerald-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm leading-relaxed"
+                  value={instrucaoGlobal}
+                  onChange={(e) => setInstrucaoGlobal(e.target.value)}
+                />
+                <p className="text-xs text-emerald-600/70">
+                  Esta instrução será enviada ao Gemini 2.0 junto com os dados para orientar a análise e o relatório final.
+                </p>
+              </div>
+            </div>
+
+            <div className="md:col-span-2 pt-2">
               <Button 
                 onClick={handleUploadAndAnalyze} 
                 loading={loading} 
@@ -328,6 +359,15 @@ export default function LogisticaInteligentePage() {
 
         {step === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            {instrucaoGlobal.trim() && (
+              <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
+                <MessageSquare className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Instrução Ativa para esta Auditoria</p>
+                  <p className="text-sm text-emerald-900 font-medium leading-relaxed">{instrucaoGlobal}</p>
+                </div>
+              </div>
+            )}
             <Card>
               <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <div>
@@ -449,44 +489,72 @@ export default function LogisticaInteligentePage() {
                   </div>
                </Card>
 
-               <div className="grid grid-cols-1 gap-6">
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                      <span className="font-black text-emerald-900 text-sm uppercase tracking-widest pl-1">Conferência OK</span>
-                      <span className="bg-emerald-600 text-white text-xs font-black px-3 py-1 rounded-full">{results?.conferem?.length || 0}</span>
+               <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { label: 'Conferência OK', count: results?.conferem?.length || 0, color: 'bg-emerald-500' },
+                    { label: 'Falta no Base', count: results?.faltam_no_base?.length || 0, color: 'bg-rose-500' },
+                    { label: 'Falta na Auditoria', count: results?.faltam_no_comparacao?.length || 0, color: 'bg-amber-500' },
+                    { label: 'Desconhecidos', count: results?.termos_desconhecidos?.length || 0, color: 'bg-slate-400' },
+                  ].map(({ label, count, color }) => (
+                    <div key={label} className="flex items-center justify-between bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-3 h-3 rounded-full ${color}`} />
+                        <span className="text-sm font-bold text-slate-700">{label}</span>
+                      </div>
+                      <span className="text-2xl font-black text-slate-900">{count}</span>
                     </div>
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-emerald-200">
-                      {results?.conferem?.length ? results.conferem.map((v, i) => (
-                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-emerald-800 border border-emerald-100/50">
-                          {formatListItem(v)}
-                        </div>
-                      )) : <p className="text-xs text-emerald-400 italic text-center py-4">Nenhum item conciliado ainda.</p>}
-                    </div>
-                  </div>
-
-                  <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                      <span className="font-black text-rose-900 text-sm uppercase tracking-widest pl-1">Divergências</span>
-                      <span className="bg-rose-600 text-white text-xs font-black px-3 py-1 rounded-full">{results?.faltam_no_base?.length || 0}</span>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-rose-200">
-                       {results?.faltam_no_base?.length ? results.faltam_no_base.map((v, i) => (
-                        <div key={i} className="bg-white/80 backdrop-blur-sm p-3 rounded-xl text-xs font-bold text-rose-800 border border-rose-100/50">
-                          {formatListItem(v)}
-                        </div>
-                      )) : <p className="text-xs text-rose-400 italic text-center py-4">Zero divergências encontradas.</p>}
-                    </div>
-                  </div>
+                  ))}
                </div>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-10 border-t border-slate-100">
+            {/* Tabela Consolidada */}
+            <Card>
+              <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" /> Detalhamento Completo da Auditoria
+                </h3>
+                <span className="text-xs text-slate-500 font-medium">
+                  {((results?.conferem?.length || 0) + (results?.faltam_no_base?.length || 0) + (results?.faltam_no_comparacao?.length || 0) + (results?.termos_desconhecidos?.length || 0))} registros
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/80">
+                      <th className="text-left px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest w-8">#</th>
+                      <th className="text-left px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      <th className="text-left px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item / Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {[
+                      ...(results?.conferem || []).map(v => ({ status: 'CONFERIDO', value: formatListItem(v), color: 'bg-emerald-100 text-emerald-700' })),
+                      ...(results?.faltam_no_base || []).map(v => ({ status: 'FALTA NO BASE', value: formatListItem(v), color: 'bg-rose-100 text-rose-700' })),
+                      ...(results?.faltam_no_comparacao || []).map(v => ({ status: 'FALTA NA AUDITORIA', value: formatListItem(v), color: 'bg-amber-100 text-amber-700' })),
+                      ...(results?.termos_desconhecidos || []).map(v => ({ status: 'DESCONHECIDO', value: formatListItem(v), color: 'bg-slate-100 text-slate-600' })),
+                    ].map((row, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-3.5 text-xs text-slate-400 font-mono">{i + 1}</td>
+                        <td className="px-6 py-3.5">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider ${row.color}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-slate-800 font-medium">{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-100">
                <Button 
                   onClick={handleDownloadCSV} 
                   loading={downloading}
                   className="w-full md:w-auto px-8 bg-slate-900 hover:bg-slate-800"
                >
-                  <Download className="w-4 h-4" /> Baixar Relatório Executivo (.CSV)
+                  <Download className="w-4 h-4" /> Baixar Tabela Completa (.CSV)
                </Button>
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] order-first md:order-last">
                  AGROSERV ERP • PLATAFORMA DE INTELIGÊNCIA LOGÍSTICA
